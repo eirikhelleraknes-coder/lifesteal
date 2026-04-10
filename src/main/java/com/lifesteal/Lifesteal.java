@@ -23,7 +23,7 @@ public class Lifesteal implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
-		LOGGER.info("Lifesteal SMP mod initialising…");
+		LOGGER.info("Lifesteal SMP mod initializing...");
 
 		// ----------------------------------------------------------------
 		// Player join: assign / restore hearts and unlock recipe
