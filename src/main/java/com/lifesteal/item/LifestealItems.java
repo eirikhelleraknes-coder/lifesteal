@@ -10,7 +10,6 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Factories and tag-detection helpers for Lifesteal custom items.
@@ -34,11 +33,9 @@ public final class LifestealItems {
     private static String getType(ItemStack stack) {
         NbtComponent customData = stack.get(DataComponentTypes.CUSTOM_DATA);
         if (customData == null) return "";
-        Optional<NbtCompound> nbt = customData.copyNbt();
-        if (nbt.isEmpty()) return "";
-        return nbt.get().getCompound(LIFESTEAL_KEY)
-                .flatMap(comp -> comp.getString(TYPE_KEY))
-                .orElse(");
+        NbtCompound nbt = customData.copyNbt();
+        if (!nbt.contains(LIFESTEAL_KEY)) return "";
+        return nbt.getCompound(LIFESTEAL_KEY).getString(TYPE_KEY);
     }
 
     public static boolean isHeartItem(ItemStack stack) {

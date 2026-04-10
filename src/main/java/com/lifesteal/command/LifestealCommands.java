@@ -38,7 +38,7 @@ public final class LifestealCommands {
                                         .executes(LifestealCommands::gift)))
                         // /ls revive <name>  (op-only)
                         .then(CommandManager.literal("revive")
-                                .requires(src -> src.getPermissions().test(2))
+                                .requires(src -> src.hasPermissionLevel(2))
                                 .then(CommandManager.argument("name", StringArgumentType.word())
                                         .executes(LifestealCommands::revive)))
         );

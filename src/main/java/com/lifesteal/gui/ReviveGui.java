@@ -18,7 +18,6 @@ import net.minecraft.util.Formatting;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -227,16 +226,17 @@ public final class ReviveGui {
     private static String getSkullName(ItemStack skull) {
         NbtComponent customData = skull.get(DataComponentTypes.CUSTOM_DATA);
         if (customData == null) return null;
-        Optional<NbtCompound> nbt = customData.copyNbt();
-        if (nbt.isEmpty()) return null;
-        return nbt.get().getString("reviveTarget").orElse(null);
+        NbtCompound nbt = customData.copyNbt();
+        if (!nbt.contains("reviveTarget")) return null;
+        return nbt.getString("reviveTarget");
     }
 
     private static List<String> getReviveCandidates(MinecraftServer server, UUID excludeUuid) {
         List<String> names = new ArrayList<>();
-        for (ServerPlayerEntity online : server.getPlayerManager().getPlayerList()) {
-            if (!online.getUuid().equals(excludeUuid)) {
-                names.add(online.getName().getString());
+        for (var entry : server.getPlayerManager().getUserBanList().values()) {
+            var cfg = entry.getKey();
+            if (!cfg.id().equals(excludeUuid)) {
+                names.add(cfg.name());
             }
         }
         return names;
