@@ -3,7 +3,10 @@
 	"package": "com.lifesteal.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
-		"ExampleMixin"
+		"ExampleMixin",
+		"TotemMixin",
+		"CraftingResultSlotMixin",
+		"ScreenHandlerMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
