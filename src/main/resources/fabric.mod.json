@@ -3,7 +3,7 @@
 	"id": "lifesteal",
 	"version": "${version}",
 	"name": "lifesteal",
-	"description": "This is an example description! Tell everyone what your mod is about!",
+	"description": "Lifesteal SMP – on PvP kill, killer gains a heart and victim loses one. Reach 0 hearts and get banned; craft or use a Revive Totem to bring players back.",
 	"authors": [
 		"Me!"
 	],
