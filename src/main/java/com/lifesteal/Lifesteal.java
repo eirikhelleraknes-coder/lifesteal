@@ -12,7 +12,7 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
-import net.minecraft.util.TypedActionResult;
+import net.minecraft.util.ActionResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,18 +31,13 @@ public class Lifesteal implements ModInitializer {
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
 			ServerPlayerEntity player = handler.player;
 			HeartManager.onPlayerJoin(player);
-			// Unlock revive totem recipe
-			server.getRecipeManager()
-					.get(net.minecraft.util.Identifier.of(MOD_ID, "revive_totem"))
-					.ifPresent(r -> player.unlockRecipes(java.util.List.of(r)));
 		});
 
 		// ----------------------------------------------------------------
 		// PvP kill: adjust hearts
 		// ----------------------------------------------------------------
-		ServerEntityCombatEvents.AFTER_KILLED_OTHER_ENTITY.register((world, killer, killed) -> {
-			if (killer instanceof ServerPlayerEntity killerPlayer
-					&& killed instanceof ServerPlayerEntity killedPlayer) {
+		ServerEntityCombatEvents.AFTER_KILLED_OTHER_ENTITY.register((world, killer, killed, damageSource) -> {
+			if (killer instanceof ServerPlayerEntity killerPlayer && killed instanceof ServerPlayerEntity killedPlayer) {
 				HeartManager.onPvpKill(killerPlayer, killedPlayer);
 			}
 		});
@@ -52,7 +47,7 @@ public class Lifesteal implements ModInitializer {
 		// ----------------------------------------------------------------
 		UseItemCallback.EVENT.register((player, world, hand) -> {
 			if (world.isClient()) {
-				return TypedActionResult.pass(player.getStackInHand(hand));
+				return ActionResult.PASS;
 			}
 
 			var stack = player.getStackInHand(hand);
@@ -62,15 +57,15 @@ public class Lifesteal implements ModInitializer {
 				stack.decrement(1);
 				world.playSound(null, player.getX(), player.getY(), player.getZ(),
 						SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 1.0f, 1.0f);
-				return TypedActionResult.success(stack);
+				return ActionResult.SUCCESS;
 			}
 
 			if (LifestealItems.isReviveTotem(stack) && player instanceof ServerPlayerEntity sp) {
 				ReviveGui.openStage1(sp, stack);
-				return TypedActionResult.success(stack);
+				return ActionResult.SUCCESS;
 			}
 
-			return TypedActionResult.pass(stack);
+			return ActionResult.PASS;
 		});
 
 		// ----------------------------------------------------------------

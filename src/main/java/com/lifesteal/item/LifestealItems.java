@@ -35,7 +35,9 @@ public final class LifestealItems {
         if (customData == null) return "";
         NbtCompound nbt = customData.copyNbt();
         if (!nbt.contains(LIFESTEAL_KEY)) return "";
-        return nbt.getCompound(LIFESTEAL_KEY).getString(TYPE_KEY);
+        return nbt.getCompound(LIFESTEAL_KEY)
+                .flatMap(comp -> comp.getString(TYPE_KEY))
+                .orElse("");
     }
 
     public static boolean isHeartItem(ItemStack stack) {

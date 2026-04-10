@@ -3,14 +3,12 @@ package com.lifesteal.manager;
 import com.lifesteal.Lifesteal;
 import com.lifesteal.config.LifestealConfig;
 import com.lifesteal.data.LifestealData;
-import com.mojang.authlib.GameProfile;
 import net.minecraft.entity.attribute.EntityAttributeInstance;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.server.BannedPlayerEntry;
 import net.minecraft.server.BannedPlayerList;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.PlayerConfigEntry;
-import net.minecraft.server.PlayerManager;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
@@ -40,7 +38,7 @@ public final class HeartManager {
     /** Applies the stored heart count as max health to the given player. */
     public static void applyHearts(ServerPlayerEntity player, int hearts) {
         EntityAttributeInstance attr =
-                player.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH);
+                player.getAttributeInstance(EntityAttributes.MAX_HEALTH);
         if (attr != null) {
             double hp = heartsToHp(hearts);
             attr.setBaseValue(hp);
@@ -60,7 +58,7 @@ public final class HeartManager {
      * configured starting hearts. Always restores max health from stored value.
      */
     public static void onPlayerJoin(ServerPlayerEntity player) {
-        MinecraftServer server = player.getServerWorld().getServer();
+        MinecraftServer server = player.getCommandSource().getServer();
         if (server == null) return;
 
         LifestealConfig cfg  = LifestealConfig.get();
@@ -94,7 +92,7 @@ public final class HeartManager {
 
     /** Adds one heart to the player (clamped to maxHearts if > 0). */
     public static void addHeart(ServerPlayerEntity player) {
-        MinecraftServer server = player.getServerWorld().getServer();
+        MinecraftServer server = player.getCommandSource().getServer();
         if (server == null) return;
 
         LifestealConfig cfg  = LifestealConfig.get();
@@ -117,7 +115,7 @@ public final class HeartManager {
      * Removes one heart from the player. Bans them if hearts reach 0 or below.
      */
     public static void removeHeart(ServerPlayerEntity victim) {
-        MinecraftServer server = victim.getServerWorld().getServer();
+        MinecraftServer server = victim.getCommandSource().getServer();
         if (server == null) return;
 
         LifestealConfig cfg  = LifestealConfig.get();
@@ -149,8 +147,7 @@ public final class HeartManager {
      * @return true if the player was found in the ban list and revived
      */
     public static boolean revivePlayer(MinecraftServer server, String targetName) {
-        PlayerManager pm      = server.getPlayerManager();
-        BannedPlayerList banList = pm.getUserBanList();
+        BannedPlayerList banList = server.getPlayerManager().getUserBanList();
 
         for (BannedPlayerEntry entry : banList.values()) {
             PlayerConfigEntry playerEntry = entry.getKey();
@@ -161,8 +158,8 @@ public final class HeartManager {
                 banList.remove(playerEntry);
 
                 // Reset hearts
-                LifestealConfig cfg  = LifestealConfig.get();
-                LifestealData   data = LifestealData.getOrCreate(server);
+                LifestealConfig cfg = LifestealConfig.get();
+                LifestealData data = LifestealData.getOrCreate(server);
                 data.setHearts(uuid, cfg.reviveHearts);
 
                 Lifesteal.LOGGER.info("Revived player {} ({})", playerEntry.name(), uuid);
@@ -177,16 +174,18 @@ public final class HeartManager {
     // -------------------------------------------------------------------------
 
     private static void banPlayer(ServerPlayerEntity player) {
-        GameProfile profile = player.getGameProfile();
-        BannedPlayerList banList = player.getServerWorld().getServer().getPlayerManager().getUserBanList();
-        PlayerConfigEntry playerEntry = new PlayerConfigEntry(profile);
+        MinecraftServer server = player.getCommandSource().getServer();
+        if (server != null) {
+            BannedPlayerList banList = server.getPlayerManager().getUserBanList();
+            PlayerConfigEntry playerEntry = new PlayerConfigEntry(player.getGameProfile());
 
-        if (!banList.contains(playerEntry)) {
-            BannedPlayerEntry entry = new BannedPlayerEntry(
-                    playerEntry, null, null, null,
-                    "You ran out of hearts in Lifesteal!"
-            );
-            banList.add(entry);
+            if (!banList.contains(playerEntry)) {
+                BannedPlayerEntry entry = new BannedPlayerEntry(
+                        playerEntry, null, null, null,
+                        "You ran out of hearts in Lifesteal!"
+                );
+                banList.add(entry);
+            }
         }
 
         player.networkHandler.disconnect(
@@ -206,7 +205,7 @@ public final class HeartManager {
 
     /** Returns the current stored heart count for an online player. */
     public static int getHearts(ServerPlayerEntity player) {
-        MinecraftServer server = player.getServerWorld().getServer();
+        MinecraftServer server = player.getCommandSource().getServer();
         if (server == null) return LifestealConfig.get().startingHearts;
         LifestealData data = LifestealData.getOrCreate(server);
         int v = data.getHearts(player.getUuid());

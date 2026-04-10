@@ -1,11 +1,8 @@
 package com.lifesteal.gui;
 
 import com.lifesteal.manager.HeartManager;
-import com.mojang.authlib.GameProfile;
-import com.mojang.authlib.properties.PropertyMap;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.NbtComponent;
-import net.minecraft.component.type.ProfileComponent;
 import net.minecraft.inventory.SimpleInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -21,7 +18,6 @@ import net.minecraft.util.Formatting;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -78,7 +74,7 @@ public final class ReviveGui {
     // -------------------------------------------------------------------------
 
     public static void openStage1(ServerPlayerEntity player, ItemStack totemInHand) {
-        MinecraftServer server = player.getServer();
+        MinecraftServer server = player.getCommandSource().getServer();
         if (server == null) return;
 
         SimpleInventory inv = new SimpleInventory(27);
@@ -88,9 +84,9 @@ public final class ReviveGui {
         for (int i = 0; i < 27; i++) inv.setStack(i, pane.copy());
 
         // Populate skulls for banned players
-        List<GameProfile> banned = getBannedProfiles(server);
-        for (int i = 0; i < Math.min(banned.size(), 27); i++) {
-            inv.setStack(i, skullFor(banned.get(i)));
+        List<String> candidates = getReviveCandidates(server, player.getUuid());
+        for (int i = 0; i < Math.min(candidates.size(), 27); i++) {
+            inv.setStack(i, skullFor(candidates.get(i)));
         }
 
         Session session = new Session(Stage.ONE, inv, null, totemInHand.copy());
@@ -122,10 +118,7 @@ public final class ReviveGui {
         for (int i = 0; i < 27; i++) inv.setStack(i, pane.copy());
 
         // Target skull at slot 13 (center of 3×9 grid)
-        GameProfile targetProfile = findBannedProfile(player.getServer(), targetName);
-        if (targetProfile != null) {
-            inv.setStack(13, skullFor(targetProfile));
-        }
+        inv.setStack(13, skullFor(targetName));
 
         // Green wool confirm at slot 11
         ItemStack confirm = new ItemStack(Items.LIME_WOOL);
@@ -181,7 +174,7 @@ public final class ReviveGui {
             if (slotIndex == 11) {
                 // Confirm – revive
                 String target = session.targetName();
-                MinecraftServer server = player.getServer();
+                MinecraftServer server = player.getCommandSource().getServer();
                 if (target != null && server != null) {
                     boolean revived = HeartManager.revivePlayer(server, target);
                     if (revived) {
@@ -217,21 +210,14 @@ public final class ReviveGui {
         return stack;
     }
 
-    private static ItemStack skullFor(GameProfile profile) {
+    private static ItemStack skullFor(String profileName) {
         ItemStack skull = new ItemStack(Items.PLAYER_HEAD);
-        skull.set(DataComponentTypes.PROFILE,
-                new ProfileComponent(
-                        Optional.of(profile.getName()),
-                        Optional.ofNullable(profile.getId()),
-                        new PropertyMap()
-                )
-        );
         skull.set(DataComponentTypes.CUSTOM_NAME,
-                Text.literal(profile.getName()).formatted(Formatting.YELLOW));
+                Text.literal(profileName).formatted(Formatting.YELLOW));
 
         // Embed the name in custom data so we can read it back on click
         NbtCompound root = new NbtCompound();
-        root.putString("reviveTarget", profile.getName());
+        root.putString("reviveTarget", profileName);
         skull.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(root));
 
         return skull;
@@ -241,24 +227,17 @@ public final class ReviveGui {
         NbtComponent customData = skull.get(DataComponentTypes.CUSTOM_DATA);
         if (customData == null) return null;
         NbtCompound nbt = customData.copyNbt();
-        return nbt.contains("reviveTarget") ? nbt.getString("reviveTarget") : null;
+        return nbt.getString("reviveTarget").orElse(null);
     }
 
-    private static List<GameProfile> getBannedProfiles(MinecraftServer server) {
-        List<GameProfile> profiles = new ArrayList<>();
-        for (var entry : server.getPlayerManager().getUserBanList().values()) {
-            profiles.add(entry.getKey());
-        }
-        return profiles;
-    }
-
-    private static GameProfile findBannedProfile(MinecraftServer server, String name) {
-        for (var entry : server.getPlayerManager().getUserBanList().values()) {
-            if (entry.getKey().getName().equalsIgnoreCase(name)) {
-                return entry.getKey();
+    private static List<String> getReviveCandidates(MinecraftServer server, UUID excludeUuid) {
+        List<String> names = new ArrayList<>();
+        for (ServerPlayerEntity online : server.getPlayerManager().getPlayerList()) {
+            if (!online.getUuid().equals(excludeUuid)) {
+                names.add(online.getName().getString());
             }
         }
-        return null;
+        return names;
     }
 
     /**
